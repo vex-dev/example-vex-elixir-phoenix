@@ -22,15 +22,15 @@ import "../css/app.css"
 // Include phoenix_html to handle method=PUT/DELETE in forms and buttons.
 import "phoenix_html"
 // Establish Phoenix Socket and LiveView configuration.
-import {Socket} from "phoenix"
-import {LiveSocket} from "phoenix_live_view"
+import { Socket } from "phoenix"
+import { LiveSocket } from "phoenix_live_view"
 import topbar from "../vendor/topbar"
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
-let liveSocket = new LiveSocket("/live", Socket, {params: {_csrf_token: csrfToken}})
+let liveSocket = new LiveSocket("/live", Socket, { params: { _csrf_token: csrfToken } })
 
 // Show progress bar on live navigation and form submits
-topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
+topbar.config({ barColors: { 0: "#29d" }, shadowColor: "rgba(0, 0, 0, .3)" })
 window.addEventListener("phx:page-loading-start", info => topbar.show())
 window.addEventListener("phx:page-loading-stop", info => topbar.hide())
 
@@ -43,3 +43,57 @@ liveSocket.connect()
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket
 
+import { Vex } from "@vex.dev/web-sdk";
+
+const videobox = document.getElementById("videobox");
+const roomId = videobox.dataset.roomId;
+const jwt = videobox.dataset.jwt;
+
+const vex = new Vex({
+  url: "wss://app.vex.dev",
+  onDisconnect: function () {
+    console.log("Disconnected");
+  }
+});
+
+function createVideoElementforPeer(peer) {
+  console.log(`Peer ${peer.displayName} joined`, peer);
+  videoElement = document.createElement("video");
+  videoElement.id = peer.displayName;
+  videoElement.autoplay = true;
+  videoElement.playsinline = true;
+  videobox.appendChild(videoElement);
+  this.receiveMediaFrom(peer.id);
+};
+
+function startVideoFromPeer(peer, stream) {
+  console.log(`Started receiving media from ${peer.displayName}`, peer, stream);
+  videoElement = document.getElementById(peer.displayName);
+  videoElement.srcObject = stream;
+}
+
+function deleteVideoPlayerForPeer(peer) {
+  console.log(`Peer ${peer.displayName} left`);
+  videoElement = document.getElementById(peer.displayName);
+  videoElement.remove();
+}
+
+vex.connect().then(async (conn) => {
+  console.log("Connected", conn);
+
+  const my_stream = await vex.getMedia({
+    audio: true,
+    video: {
+      width: { min: 640, ideal: 1920, max: 1920 },
+      height: { min: 400, ideal: 1080 }
+    }
+  });
+
+  console.log(`Joining room ${roomId}`);
+  const room = await conn.joinRoom(roomId, jwt, {
+    displayName: "my-demo",
+    onPeerJoined: createVideoElementforPeer,
+    onPeerMedia: startVideoFromPeer,
+    onPeerLeft: deleteVideoPlayerForPeer
+  });
+});
