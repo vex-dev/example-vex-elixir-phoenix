@@ -78,6 +78,15 @@ function deleteVideoPlayerForPeer(peer) {
   videoElement.remove();
 }
 
+function showMyMedia(my_stream) {
+  videoElement = document.createElement("video");
+  videoElement.id = "me";
+  videoElement.autoplay = true;
+  videoElement.playsinline = true;
+  videoElement.srcObject = my_stream;
+  videobox.appendChild(videoElement);
+}
+
 vex.connect().then(async (conn) => {
   console.log("Connected", conn);
 
@@ -96,4 +105,7 @@ vex.connect().then(async (conn) => {
     onPeerMedia: startVideoFromPeer,
     onPeerLeft: deleteVideoPlayerForPeer
   });
+
+  showMyMedia(my_stream);
+  room.sendMedia(my_stream);
 });
